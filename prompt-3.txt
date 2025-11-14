@@ -1,0 +1,1 @@
+Take the first Setup task and transform it into a prompt that can be used to kickstart the project and create the initial design. Add a bit of context about the project we are trying to build. 

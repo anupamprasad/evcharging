@@ -1,0 +1,15 @@
+Based on this specification, I also need you to create a todo list, to help build features in logical order. 
+
+Example of phases and tasks:
+
+1. Setup
+- initial setup with Vite
+- installing project dependencies
+- Create the layout 
+- Create a functional prototype with working functionality (like drag and drop)
+
+2. Set up the Supabase project and database
+
+3. Basic functionality (adding, moving card)
+
+4. Advanced functionality (adding/editing/deleting columns)

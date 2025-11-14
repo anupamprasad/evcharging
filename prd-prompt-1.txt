@@ -1,0 +1,16 @@
+I need to write a software specification (PRD), and I need your help with writing it. The output should be formatted as Markdown and should not use emojis.
+
+I want to build a Trello-style kanban board using Vite and dnd-kit with drag & drop functionality and beautiful design. 
+
+Here are some features I think I will need:
+
+- Multiple columns (To Do, In Progress, Done) that can hold task cards
+- Smooth drag and drop functionality between columns
+- Ability to add new cards to any column
+- Ability to edit in place a card name
+- Ability to add new columns
+- Ability to rename columns
+- Ability to delete columns
+- Storage using Supabase
+
+Ask follow-up questions if something is unclear BEFORE you start generating.
