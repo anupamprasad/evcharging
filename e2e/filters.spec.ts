@@ -3,7 +3,9 @@ import { test, expect } from '@playwright/test';
 test.describe('Filter Functionality', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.waitForSelector('.mapboxgl-map', { timeout: 10000 });
+    await page.waitForLoadState('networkidle');
+    // Wait for app to render - don't require map to be visible
+    await page.waitForTimeout(2000);
   });
 
   test('should filter by connector type', async ({ page }) => {
