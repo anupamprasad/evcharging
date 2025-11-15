@@ -169,13 +169,20 @@ export default function HomePage() {
             <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
               <div className="text-lg">Loading stations...</div>
             </div>
-          ) : (
+          ) : filteredStations.length > 0 ? (
             <MapView
               stations={filteredStations}
               selectedStation={selectedStation}
               onStationSelect={setSelectedStation}
               userLocation={userLocation}
             />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+              <div className="text-center">
+                <p className="text-lg text-gray-600 mb-2">No stations found</p>
+                <p className="text-sm text-gray-500">Try adjusting your search or filters</p>
+              </div>
+            </div>
           )}
         </div>
 
