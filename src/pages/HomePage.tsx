@@ -137,8 +137,10 @@ export default function HomePage() {
         console.warn('No stations found in database')
       }
       
-      setStations(data || [])
-      setFilteredStations(data || [])
+      // Type assertion: Supabase returns data that matches our Station interface
+      const typedStations = (data || []) as Station[]
+      setStations(typedStations)
+      setFilteredStations(typedStations)
     } catch (error: any) {
       console.error('Error loading stations:', error)
       setLoadError(error?.message || 'Failed to load stations. Please check your Supabase connection.')

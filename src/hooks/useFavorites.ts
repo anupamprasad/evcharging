@@ -26,7 +26,8 @@ export function useFavorites() {
         .eq('user_id', user.id)
 
       if (error) throw error
-      setFavorites(data?.map((f) => f.station_id) || [])
+      // Type assertion: Supabase returns data with station_id field
+      setFavorites((data as { station_id: string }[])?.map((f) => f.station_id) || [])
     } catch (error) {
       console.error('Error loading favorites:', error)
     } finally {

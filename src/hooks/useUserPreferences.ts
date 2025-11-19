@@ -32,7 +32,8 @@ export function useUserPreferences() {
         throw error
       }
 
-      setPreferences(data || null)
+      // Type assertion: Supabase returns data that matches our UserProfile interface
+      setPreferences((data as UserProfile) || null)
     } catch (error) {
       console.error('Error loading preferences:', error)
     } finally {
