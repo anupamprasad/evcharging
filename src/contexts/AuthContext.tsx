@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: any }>
-  signUp: (email: string, password: string) => Promise<{ error: any }>
+  signUp: (email: string, password: string) => Promise<{ error: any; requiresConfirmation?: boolean }>
   signOut: () => Promise<void>
 }
 
@@ -19,12 +19,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    // Get initial session with error handling
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (error) {
+          console.error('Error getting session:', error)
+          setLoading(false)
+          return
+        }
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
+      })
+      .catch((error) => {
+        console.error('Failed to get session:', error)
+        setLoading(false)
+      })
 
     // Listen for auth changes
     const {
@@ -39,23 +49,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      
+      if (error) {
+        console.error('Sign in error:', error)
+        return { error }
+      }
+      
+      // Session is automatically updated via onAuthStateChange
+      return { error: null }
+    } catch (err: any) {
+      console.error('Sign in exception:', err)
+      return { 
+        error: { 
+          message: err.message || 'An unexpected error occurred during sign in' 
+        } 
+      }
+    }
   }
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
-    return { error }
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      })
+      
+      if (error) {
+        console.error('Sign up error:', error)
+        return { error }
+      }
+      
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        // Email confirmation required
+        return { 
+          error: null,
+          requiresConfirmation: true 
+        }
+      }
+      
+      return { error: null }
+    } catch (err: any) {
+      console.error('Sign up exception:', err)
+      return { 
+        error: { 
+          message: err.message || 'An unexpected error occurred during sign up' 
+        } 
+      }
+    }
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Sign out error:', error)
+        throw error
+      }
+    } catch (err: any) {
+      console.error('Sign out exception:', err)
+      // Even if sign out fails, clear local state
+      setSession(null)
+      setUser(null)
+    }
   }
 
   return (

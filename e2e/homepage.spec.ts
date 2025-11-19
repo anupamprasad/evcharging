@@ -5,14 +5,16 @@ test.describe('Homepage', () => {
     await page.goto('/');
     // Wait for the page to load - check for either the header or loading state
     await page.waitForLoadState('networkidle');
-    // Wait a bit more for React to render
-    await page.waitForTimeout(1000);
+    // Wait for React to render and Supabase to load
+    await page.waitForTimeout(2000);
+    // Wait for header to be visible as a sign that page loaded
+    await page.waitForSelector('h1:has-text("EV Charging Station Finder")', { timeout: 10000 }).catch(() => {});
   });
 
   test('should display the main header', async ({ page }) => {
-    // Try multiple ways to find the header
-    const header = page.locator('h1, header').filter({ hasText: /EV Charging|Charging Station/i }).first();
-    await expect(header).toBeVisible({ timeout: 10000 });
+    // The header contains "EV Charging Station Finder" in an h1
+    const header = page.locator('h1:has-text("EV Charging Station Finder")');
+    await expect(header).toBeVisible({ timeout: 15000 });
   });
 
   test('should display the map or map error message', async ({ page }) => {
@@ -33,23 +35,21 @@ test.describe('Homepage', () => {
   });
 
   test('should display search bar', async ({ page }) => {
-    // Wait for search input with multiple selectors
-    const searchInput = page.getByPlaceholder(/Search by city|Search/i).first();
-    await expect(searchInput).toBeVisible({ timeout: 10000 });
+    // Search input has placeholder "Search by city, address, or PIN code..."
+    const searchInput = page.getByPlaceholder('Search by city, address, or PIN code...');
+    await expect(searchInput).toBeVisible({ timeout: 15000 });
   });
 
   test('should display filter panel', async ({ page }) => {
-    // Wait for filter panel to load
-    await page.waitForTimeout(1000);
-    const filtersText = page.locator('text=/Filter/i').first();
-    await expect(filtersText).toBeVisible({ timeout: 10000 });
+    // Filter panel has heading "Filters"
+    const filtersHeading = page.locator('h3:has-text("Filters")');
+    await expect(filtersHeading).toBeVisible({ timeout: 15000 });
   });
 
   test('should display "Use Current Location" button', async ({ page }) => {
-    // Wait for button to appear
-    await page.waitForTimeout(1000);
-    const locationButton = page.getByRole('button', { name: /Use Current Location|Current Location/i }).first();
-    await expect(locationButton).toBeVisible({ timeout: 10000 });
+    // Button text is "📍 Use Current Location"
+    const locationButton = page.getByRole('button', { name: /Use Current Location/i });
+    await expect(locationButton).toBeVisible({ timeout: 15000 });
   });
 });
 

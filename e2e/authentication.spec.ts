@@ -39,18 +39,21 @@ test.describe('Authentication', () => {
     await page.waitForTimeout(1000);
     
     // Check for heading (could be Sign In or Sign Up initially)
-    const initialHeading = page.locator('h2, h1').filter({ hasText: /Sign In|Sign Up/i }).first();
+    const initialHeading = page.locator('h2:has-text("Sign In"), h2:has-text("Sign Up")');
     await expect(initialHeading).toBeVisible({ timeout: 10000 });
     
-    // Try to find toggle link
-    const toggleLink = page.getByRole('link', { name: /Don't have|Already have/i }).first();
-    if (await toggleLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await toggleLink.click();
+    // Try to find toggle button (it's a button, not a link)
+    const toggleButton = page.getByRole('button', { name: /Don't have|Already have/i });
+    if (await toggleButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      const initialText = await initialHeading.textContent();
+      await toggleButton.click();
       await page.waitForTimeout(500);
       
       // Check that heading changed
-      const newHeading = page.locator('h2, h1').filter({ hasText: /Sign In|Sign Up/i }).first();
+      const newHeading = page.locator('h2:has-text("Sign In"), h2:has-text("Sign Up")');
       await expect(newHeading).toBeVisible({ timeout: 10000 });
+      const newText = await newHeading.textContent();
+      expect(newText).not.toBe(initialText);
     }
   });
 
@@ -78,7 +81,8 @@ test.describe('Authentication', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
     
-    const backLink = page.getByRole('link', { name: /Back to Home|Home/i }).first();
+    // Back link text is "← Back to Home"
+    const backLink = page.getByRole('link', { name: /Back to Home/i });
     await expect(backLink).toBeVisible({ timeout: 10000 });
     
     await backLink.click();

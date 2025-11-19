@@ -8,8 +8,8 @@ test.describe('Search Functionality', () => {
   });
 
   test('should filter stations by city name', async ({ page }) => {
-    const searchInput = page.getByPlaceholder(/Search by city|Search/i).first();
-    await expect(searchInput).toBeVisible({ timeout: 10000 });
+    const searchInput = page.getByPlaceholder('Search by city, address, or PIN code...');
+    await expect(searchInput).toBeVisible({ timeout: 15000 });
     
     await searchInput.fill('Mumbai');
     await page.waitForTimeout(500); // Wait for filter to apply
@@ -19,8 +19,8 @@ test.describe('Search Functionality', () => {
   });
 
   test('should filter stations by PIN code', async ({ page }) => {
-    const searchInput = page.getByPlaceholder(/Search by city|Search/i).first();
-    await expect(searchInput).toBeVisible({ timeout: 10000 });
+    const searchInput = page.getByPlaceholder('Search by city, address, or PIN code...');
+    await expect(searchInput).toBeVisible({ timeout: 15000 });
     
     await searchInput.fill('110001');
     await page.waitForTimeout(500);
@@ -29,8 +29,8 @@ test.describe('Search Functionality', () => {
   });
 
   test('should clear search when clicking clear button', async ({ page }) => {
-    const searchInput = page.getByPlaceholder(/Search by city|Search/i).first();
-    await expect(searchInput).toBeVisible({ timeout: 10000 });
+    const searchInput = page.getByPlaceholder('Search by city, address, or PIN code...');
+    await expect(searchInput).toBeVisible({ timeout: 15000 });
     
     await searchInput.fill('Delhi');
     await page.waitForTimeout(300);

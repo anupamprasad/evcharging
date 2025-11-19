@@ -17,17 +17,40 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { error: authError } = isSignUp
+      const result = isSignUp
         ? await signUp(email, password)
         : await signIn(email, password)
 
-      if (authError) {
-        setError(authError.message)
+      if (result.error) {
+        // Handle specific error messages
+        let errorMessage = result.error.message || 'An error occurred'
+        
+        // Provide user-friendly error messages
+        if (errorMessage.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please try again.'
+        } else if (errorMessage.includes('Email not confirmed')) {
+          errorMessage = 'Please check your email and confirm your account before signing in.'
+        } else if (errorMessage.includes('User already registered')) {
+          errorMessage = 'An account with this email already exists. Please sign in instead.'
+        } else if (errorMessage.includes('Password')) {
+          errorMessage = 'Password must be at least 6 characters long.'
+        }
+        
+        setError(errorMessage)
       } else {
-        navigate('/')
+        // Check if email confirmation is required (for sign up)
+        if (isSignUp && 'requiresConfirmation' in result && result.requiresConfirmation) {
+          setError('')
+          alert('Please check your email to confirm your account before signing in.')
+          setIsSignUp(false) // Switch to sign in mode
+        } else {
+          // Successful authentication
+          navigate('/')
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
+      console.error('Authentication error:', err)
+      setError(err.message || 'An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
