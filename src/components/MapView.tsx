@@ -25,6 +25,7 @@ export default function MapView({
     zoom: 5,
   })
   const [popupInfo, setPopupInfo] = useState<Station | null>(null)
+  const [mapLoaded, setMapLoaded] = useState(false)
   const mapRef = useRef<any>(null)
 
   // Create cluster instance
@@ -37,7 +38,23 @@ export default function MapView({
 
   // Prepare points for clustering
   const points = useMemo(() => {
-    return stations.map((station) => ({
+    // Filter out stations with invalid coordinates
+    const validStations = stations.filter(
+      (station) => 
+        station && 
+        typeof station.latitude === 'number' && 
+        typeof station.longitude === 'number' &&
+        !isNaN(station.latitude) &&
+        !isNaN(station.longitude) &&
+        station.latitude >= -90 &&
+        station.latitude <= 90 &&
+        station.longitude >= -180 &&
+        station.longitude <= 180
+    )
+    
+    console.log(`Preparing ${validStations.length} valid stations out of ${stations.length} total`)
+    
+    return validStations.map((station) => ({
       type: 'Feature' as const,
       properties: {
         cluster: false,
@@ -58,16 +75,36 @@ export default function MapView({
 
   // Get clusters and individual points for current view
   const { clusters, markers } = useMemo(() => {
+    // If no stations, return empty
+    if (!stations || stations.length === 0) {
+      return { clusters: [], markers: [] }
+    }
+
+    // If map is not ready, show all stations as individual markers
     if (!mapRef.current) {
+      console.log('Map not ready, showing all stations as individual markers')
       return { clusters: [], markers: stations }
     }
 
     try {
       const map = mapRef.current.getMap()
-      const bounds = map.getBounds().toArray().flat() as [number, number, number, number]
+      
+      // Check if map is loaded
+      if (!map || (!map.loaded() && !mapLoaded)) {
+        console.log('Map not loaded yet, showing all stations')
+        return { clusters: [], markers: stations.filter(s => s.latitude && s.longitude) }
+      }
+
+      const bounds = map.getBounds()
+      if (!bounds) {
+        console.log('Bounds not available, showing all stations')
+        return { clusters: [], markers: stations }
+      }
+
+      const boundsArray = bounds.toArray().flat() as [number, number, number, number]
 
       const clusterResults = cluster.getClusters(
-        bounds,
+        boundsArray,
         Math.floor(viewState.zoom)
       )
 
@@ -83,18 +120,20 @@ export default function MapView({
           })
         } else {
           const station = clusterPoint.properties.station as Station
-          if (station) {
+          if (station && station.latitude && station.longitude) {
             individualMarkers.push(station)
           }
         }
       })
 
+      console.log(`Rendering ${individualMarkers.length} individual markers and ${clusterMarkers.length} clusters`)
       return { clusters: clusterMarkers, markers: individualMarkers }
     } catch (error) {
+      console.error('Clustering error, falling back to all stations:', error)
       // Fallback to showing all stations if clustering fails
-      return { clusters: [], markers: stations }
+      return { clusters: [], markers: stations.filter(s => s.latitude && s.longitude) }
     }
-  }, [cluster, viewState.zoom, stations])
+  }, [cluster, viewState.zoom, stations, mapLoaded])
 
   // Center map on user location if available
   useEffect(() => {
@@ -151,6 +190,10 @@ export default function MapView({
       ref={mapRef}
       {...viewState}
       onMove={(evt: ViewStateChangeEvent) => setViewState(evt.viewState)}
+      onLoad={() => {
+        setMapLoaded(true)
+        console.log('Map loaded successfully')
+      }}
       mapboxAccessToken={MAPBOX_TOKEN}
       style={{ width: '100%', height: '100%' }}
       mapStyle="mapbox://styles/mapbox/streets-v12"
