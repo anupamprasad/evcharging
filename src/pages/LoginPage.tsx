@@ -25,15 +25,29 @@ export default function LoginPage() {
         // Handle specific error messages
         let errorMessage = result.error.message || 'An error occurred'
         
+        console.error('Login error details:', {
+          message: errorMessage,
+          status: result.error.status,
+          code: result.error.code || result.error.name
+        })
+        
         // Provide user-friendly error messages
-        if (errorMessage.includes('Invalid login credentials')) {
-          errorMessage = 'Invalid email or password. Please try again.'
-        } else if (errorMessage.includes('Email not confirmed')) {
+        if (errorMessage.includes('Invalid login credentials') || 
+            errorMessage.includes('invalid_credentials') ||
+            result.error.status === 400) {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.'
+        } else if (errorMessage.includes('Email not confirmed') || 
+                   errorMessage.includes('email_not_confirmed')) {
           errorMessage = 'Please check your email and confirm your account before signing in.'
-        } else if (errorMessage.includes('User already registered')) {
+        } else if (errorMessage.includes('User already registered') || 
+                   errorMessage.includes('already_registered')) {
           errorMessage = 'An account with this email already exists. Please sign in instead.'
-        } else if (errorMessage.includes('Password')) {
+        } else if (errorMessage.includes('Password') || 
+                   errorMessage.includes('password')) {
           errorMessage = 'Password must be at least 6 characters long.'
+        } else if (errorMessage.includes('network') || 
+                   errorMessage.includes('fetch')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.'
         }
         
         setError(errorMessage)

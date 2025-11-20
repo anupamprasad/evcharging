@@ -50,20 +50,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('🔐 Attempting to sign in with email:', email)
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       
       if (error) {
-        console.error('Sign in error:', error)
+        console.error('❌ Sign in error:', error)
+        console.error('Error code:', error.status, error.message)
         return { error }
       }
       
+      console.log('✅ Sign in successful, user:', data.user?.email)
       // Session is automatically updated via onAuthStateChange
       return { error: null }
     } catch (err: any) {
-      console.error('Sign in exception:', err)
+      console.error('❌ Sign in exception:', err)
       return { 
         error: { 
           message: err.message || 'An unexpected error occurred during sign in' 
@@ -74,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
+      console.log('📝 Attempting to sign up with email:', email)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -83,12 +87,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       
       if (error) {
-        console.error('Sign up error:', error)
+        console.error('❌ Sign up error:', error)
+        console.error('Error code:', error.status, error.message)
         return { error }
       }
       
+      console.log('✅ Sign up successful, user created:', data.user?.email)
+      console.log('Session available:', !!data.session)
+      
       // Check if email confirmation is required
       if (data.user && !data.session) {
+        console.log('📧 Email confirmation required')
         // Email confirmation required
         return { 
           error: null,
@@ -96,9 +105,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
+      console.log('✅ User signed up and logged in automatically')
       return { error: null }
     } catch (err: any) {
-      console.error('Sign up exception:', err)
+      console.error('❌ Sign up exception:', err)
       return { 
         error: { 
           message: err.message || 'An unexpected error occurred during sign up' 

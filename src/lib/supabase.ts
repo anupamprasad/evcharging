@@ -34,8 +34,12 @@ export const supabase: SupabaseClient = createClient(
 if (import.meta.env.DEV) {
   if (supabaseUrl && supabaseAnonKey && supabaseUrl !== 'https://placeholder.supabase.co') {
     console.log('✅ Supabase client initialized successfully')
+    console.log('📍 Supabase URL:', supabaseUrl)
   } else {
     console.warn('⚠️ Supabase client initialized with placeholder credentials')
+    console.error('❌ Missing environment variables:')
+    if (!supabaseUrl) console.error('   - VITE_SUPABASE_URL is missing')
+    if (!supabaseAnonKey) console.error('   - VITE_SUPABASE_ANON_KEY is missing')
   }
 }
 
