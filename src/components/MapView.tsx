@@ -1,8 +1,27 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
-import Map, { Marker, Popup, ViewStateChangeEvent } from 'react-map-gl/mapbox'
+import { useEffect, useRef, useMemo } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import Supercluster from 'supercluster'
 import { Station } from '../types/database'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
+
+// Fix for default marker icons in Leaflet with Vite
+import icon from 'leaflet/dist/images/marker-icon.png'
+import iconShadow from 'leaflet/dist/images/marker-shadow.png'
+import iconRetina from 'leaflet/dist/images/marker-icon-2x.png'
+
+const DefaultIcon = L.icon({
+  iconUrl: icon,
+  iconRetinaUrl: iconRetina,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  tooltipAnchor: [16, -28],
+  shadowSize: [41, 41]
+})
+
+L.Marker.prototype.options.icon = DefaultIcon
 
 interface MapViewProps {
   stations: Station[]
@@ -11,7 +30,38 @@ interface MapViewProps {
   userLocation: { lat: number; lng: number } | null
 }
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
+// Component to handle map view updates
+function MapController({ 
+  selectedStation, 
+  userLocation 
+}: { 
+  selectedStation: Station | null
+  userLocation: { lat: number; lng: number } | null
+}) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (selectedStation) {
+      map.setView([selectedStation.latitude, selectedStation.longitude], 14)
+    } else if (userLocation) {
+      map.setView([userLocation.lat, userLocation.lng], 12)
+    }
+  }, [map, selectedStation, userLocation])
+
+  return null
+}
+
+// Component to capture map reference
+function MapRefHandler({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) {
+  const map = useMap()
+  
+  useEffect(() => {
+    mapRef.current = map
+    console.log('Map created successfully')
+  }, [map, mapRef])
+
+  return null
+}
 
 export default function MapView({
   stations,
@@ -19,14 +69,22 @@ export default function MapView({
   onStationSelect,
   userLocation,
 }: MapViewProps) {
-  const [viewState, setViewState] = useState({
-    longitude: 77.2090, // Default to New Delhi
-    latitude: 28.6139,
-    zoom: 5,
-  })
-  const [popupInfo, setPopupInfo] = useState<Station | null>(null)
-  const [mapLoaded, setMapLoaded] = useState(false)
-  const mapRef = useRef<any>(null)
+  const mapRef = useRef<L.Map | null>(null)
+
+  // Default center (New Delhi)
+  const defaultCenter: [number, number] = [28.6139, 77.2090]
+  const defaultZoom = 5
+
+  // Determine initial center
+  const initialCenter = useMemo(() => {
+    if (selectedStation) {
+      return [selectedStation.latitude, selectedStation.longitude] as [number, number]
+    }
+    if (userLocation) {
+      return [userLocation.lat, userLocation.lng] as [number, number]
+    }
+    return defaultCenter
+  }, [selectedStation, userLocation])
 
   // Create cluster instance
   const cluster = useMemo(() => {
@@ -83,29 +141,29 @@ export default function MapView({
     // If map is not ready, show all stations as individual markers
     if (!mapRef.current) {
       console.log('Map not ready, showing all stations as individual markers')
-      return { clusters: [], markers: stations }
+      return { clusters: [], markers: stations.filter(s => s.latitude && s.longitude) }
     }
 
     try {
-      const map = mapRef.current.getMap()
+      const map = mapRef.current
+      const bounds = map.getBounds()
       
-      // Check if map is loaded
-      if (!map || (!map.loaded() && !mapLoaded)) {
-        console.log('Map not loaded yet, showing all stations')
+      if (!bounds) {
+        console.log('Bounds not available, showing all stations')
         return { clusters: [], markers: stations.filter(s => s.latitude && s.longitude) }
       }
 
-      const bounds = map.getBounds()
-      if (!bounds) {
-        console.log('Bounds not available, showing all stations')
-        return { clusters: [], markers: stations }
-      }
-
-      const boundsArray = bounds.toArray().flat() as [number, number, number, number]
+      const zoom = map.getZoom()
+      const boundsArray: [number, number, number, number] = [
+        bounds.getWest(),
+        bounds.getSouth(),
+        bounds.getEast(),
+        bounds.getNorth(),
+      ]
 
       const clusterResults = cluster.getClusters(
         boundsArray,
-        Math.floor(viewState.zoom)
+        Math.floor(zoom)
       )
 
       const individualMarkers: Station[] = []
@@ -133,29 +191,7 @@ export default function MapView({
       // Fallback to showing all stations if clustering fails
       return { clusters: [], markers: stations.filter(s => s.latitude && s.longitude) }
     }
-  }, [cluster, viewState.zoom, stations, mapLoaded])
-
-  // Center map on user location if available
-  useEffect(() => {
-    if (userLocation) {
-      setViewState({
-        longitude: userLocation.lng,
-        latitude: userLocation.lat,
-        zoom: 12,
-      })
-    }
-  }, [userLocation])
-
-  // Center map on selected station
-  useEffect(() => {
-    if (selectedStation) {
-      setViewState({
-        longitude: selectedStation.longitude,
-        latitude: selectedStation.latitude,
-        zoom: 14,
-      })
-    }
-  }, [selectedStation])
+  }, [cluster, stations])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -170,42 +206,29 @@ export default function MapView({
     }
   }
 
-  if (!MAPBOX_TOKEN) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <p className="text-lg text-gray-600 mb-2">
-            Mapbox token not configured
-          </p>
-          <p className="text-sm text-gray-500">
-            Please set VITE_MAPBOX_TOKEN in your .env file
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <Map
-      ref={mapRef}
-      {...viewState}
-      onMove={(evt: ViewStateChangeEvent) => setViewState(evt.viewState)}
-      onLoad={() => {
-        setMapLoaded(true)
-        console.log('Map loaded successfully')
-      }}
-      mapboxAccessToken={MAPBOX_TOKEN}
+    <MapContainer
+      center={initialCenter}
+      zoom={defaultZoom}
       style={{ width: '100%', height: '100%' }}
-      mapStyle="mapbox://styles/mapbox/streets-v12"
     >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+
+      <MapRefHandler mapRef={mapRef} />
+      <MapController
+        selectedStation={selectedStation}
+        userLocation={userLocation}
+      />
+
       {/* User Location Marker */}
       {userLocation && (
-        <Marker
-          longitude={userLocation.lng}
-          latitude={userLocation.lat}
-          anchor="center"
-        >
-          <div className="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg"></div>
+        <Marker position={[userLocation.lat, userLocation.lng]}>
+          <Popup>
+            <div className="text-sm font-semibold">Your Location</div>
+          </Popup>
         </Marker>
       )}
 
@@ -213,33 +236,33 @@ export default function MapView({
       {clusters.map((clusterMarker) => (
         <Marker
           key={`cluster-${clusterMarker.id}`}
-          longitude={clusterMarker.coordinates[0]}
-          latitude={clusterMarker.coordinates[1]}
-          anchor="center"
+          position={[clusterMarker.coordinates[1], clusterMarker.coordinates[0]]}
         >
-          <div
-            className="flex items-center justify-center rounded-full border-2 border-white text-white font-bold text-xs cursor-pointer"
-            style={{
-              width: `${40 + Math.min(clusterMarker.pointCount, 10) * 4}px`,
-              height: `${40 + Math.min(clusterMarker.pointCount, 10) * 4}px`,
-              backgroundColor: '#3b82f6',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-            }}
-            onClick={() => {
-              const expansionZoom = Math.min(
-                cluster.getClusterExpansionZoom(clusterMarker.id) || viewState.zoom + 2,
-                18
-              )
-              setViewState({
-                ...viewState,
-                zoom: expansionZoom,
-                longitude: clusterMarker.coordinates[0],
-                latitude: clusterMarker.coordinates[1],
-              })
-            }}
-          >
-            {clusterMarker.pointCount}
-          </div>
+          <Popup>
+            <div
+              className="flex items-center justify-center rounded-full border-2 border-white text-white font-bold text-xs cursor-pointer"
+              style={{
+                width: `${40 + Math.min(clusterMarker.pointCount, 10) * 4}px`,
+                height: `${40 + Math.min(clusterMarker.pointCount, 10) * 4}px`,
+                backgroundColor: '#3b82f6',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+              }}
+              onClick={() => {
+                if (mapRef.current) {
+                  const expansionZoom = Math.min(
+                    cluster.getClusterExpansionZoom(clusterMarker.id) || mapRef.current.getZoom() + 2,
+                    18
+                  )
+                  mapRef.current.setView(
+                    [clusterMarker.coordinates[1], clusterMarker.coordinates[0]],
+                    expansionZoom
+                  )
+                }
+              }}
+            >
+              {clusterMarker.pointCount}
+            </div>
+          </Popup>
         </Marker>
       ))}
 
@@ -247,47 +270,46 @@ export default function MapView({
       {markers.map((station) => (
         <Marker
           key={station.id}
-          longitude={station.longitude}
-          latitude={station.latitude}
-          anchor="center"
+          position={[station.latitude, station.longitude]}
+          icon={L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="
+              width: 20px;
+              height: 20px;
+              background-color: ${getStatusColor(station.availability_status)};
+              border: 2px solid white;
+              border-radius: 50%;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+              cursor: pointer;
+            "></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+          })}
         >
-          <button
-            onClick={() => {
-              onStationSelect(station)
-              setPopupInfo(station)
+          <Popup
+            eventHandlers={{
+              add: () => {
+                onStationSelect(station)
+              },
+              remove: () => {
+                // Popup closed
+              }
             }}
-            className="cursor-pointer"
-            style={{
-              width: '20px',
-              height: '20px',
-              backgroundColor: getStatusColor(station.availability_status),
-              border: '2px solid white',
-              borderRadius: '50%',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-            }}
-            title={station.name}
-          />
+          >
+            <div className="p-2">
+              <h3 className="font-semibold text-sm mb-1">{station.name}</h3>
+              <p className="text-xs text-gray-600">{station.operator}</p>
+              <p className="text-xs text-gray-600">{station.availability_status}</p>
+              <button
+                onClick={() => onStationSelect(station)}
+                className="mt-2 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+              >
+                View Details
+              </button>
+            </div>
+          </Popup>
         </Marker>
       ))}
-
-      {/* Popup */}
-      {popupInfo && (
-        <Popup
-          longitude={popupInfo.longitude}
-          latitude={popupInfo.latitude}
-          anchor="bottom"
-          onClose={() => setPopupInfo(null)}
-          closeButton={true}
-          closeOnClick={false}
-        >
-          <div className="p-2">
-            <h3 className="font-semibold text-sm mb-1">{popupInfo.name}</h3>
-            <p className="text-xs text-gray-600">{popupInfo.operator}</p>
-            <p className="text-xs text-gray-600">{popupInfo.availability_status}</p>
-          </div>
-        </Popup>
-      )}
-    </Map>
+    </MapContainer>
   )
 }
-
